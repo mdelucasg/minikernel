@@ -1,0 +1,11 @@
+Memoria de la practica del Minikernel de la asignatura Sistemas Operativos Avanzados
+Autor: De Lucas Garcia, Mario
+Comienzo: 4 de abril.
+Final: 
+
+Calendario de actualizaciones:
+04/04: 
+	Lectura y compresion de la practica. 
+	Se ha creado un repositorio de GitHub.
+
+
