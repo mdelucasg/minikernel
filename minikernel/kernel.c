@@ -1,9 +1,9 @@
 /*
  *  kernel/kernel.c
  *
- *  Minikernel. Versión 1.0
+ *  Minikernel. Versin 1.0
  *
- *  Fernando Pérez Costoya
+ *  Fernando Prez Costoya
  *
  */
 
@@ -23,7 +23,7 @@
  */
 
 /*
- * Función que inicia la tabla de procesos
+ * Funcin que inicia la tabla de procesos
  */
 static void iniciar_tabla_proc(){
 	int i;
@@ -33,7 +33,7 @@ static void iniciar_tabla_proc(){
 }
 
 /*
- * Función que busca una entrada libre en la tabla de procesos
+ * Funcin que busca una entrada libre en la tabla de procesos
  */
 static int buscar_BCP_libre(){
 	int i;
@@ -107,14 +107,14 @@ static void espera_int(){
 
 	printk("-> NO HAY LISTOS. ESPERA INT\n");
 
-	/* Baja al mínimo el nivel de interrupción mientras espera */
+	/* Baja al mnimo el nivel de interrupcin mientras espera */
 	nivel=fijar_nivel_int(NIVEL_1);
 	halt();
 	fijar_nivel_int(nivel);
 }
 
 /*
- * Función de planificacion que implementa un algoritmo FIFO.
+ * Funcin de planificacion que implementa un algoritmo FIFO.
  */
 static BCP * planificador(){
 	while (lista_listos.primero==NULL)
@@ -145,7 +145,7 @@ static void liberar_proceso(){
 
 	liberar_pila(p_proc_anterior->pila);
 	cambio_contexto(NULL, &(p_proc_actual->contexto_regs));
-        return; /* no debería llegar aqui */
+        return; /* no debera llegar aqui */
 }
 
 /*
@@ -171,7 +171,7 @@ static void exc_arit(){
 	printk("-> EXCEPCION ARITMETICA EN PROC %d\n", p_proc_actual->id);
 	liberar_proceso();
 
-        return; /* no debería llegar aqui */
+        return; /* no debera llegar aqui */
 }
 
 /*
@@ -186,7 +186,7 @@ static void exc_mem(){
 	printk("-> EXCEPCION DE MEMORIA EN PROC %d\n", p_proc_actual->id);
 	liberar_proceso();
 
-        return; /* no debería llegar aqui */
+        return; /* no debera llegar aqui */
 }
 
 /*
@@ -324,12 +324,20 @@ int sis_terminar_proceso(){
 
 	liberar_proceso();
 
-        return 0; /* no debería llegar aqui */
+        return 0; /* no debera llegar aqui */
+}
+//-----------------------------------------------------------------------------------------
+
+/**
+* Funcion que retorna el id del proceso que la invoca
+*/
+int obtener_id_pr(){
+	return p_proc_actual->id;
 }
 
 /*
  *
- * Rutina de inicialización invocada en arranque
+ * Rutina de inicializacin invocada en arranque
  *
  */
 int main(){
@@ -342,7 +350,7 @@ int main(){
 	instal_man_int(LLAM_SIS, tratar_llamsis); 
 	instal_man_int(INT_SW, int_sw); 
 
-	iniciar_cont_int();		/* inicia cont. interr. */
+	iniciar_cont_int();			/* inicia cont. interr. */
 	iniciar_cont_reloj(TICK);	/* fija frecuencia del reloj */
 	iniciar_cont_teclado();		/* inici cont. teclado */
 

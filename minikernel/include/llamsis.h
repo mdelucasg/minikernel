@@ -1,9 +1,9 @@
 /*
  *  minikernel/kernel/include/llamsis.h
  *
- *  Minikernel. Versión 1.0
+ *  Minikernel. Versiï¿½n 1.0
  *
- *  Fernando Pérez Costoya
+ *  Fernando Pï¿½rez Costoya
  *
  */
 
@@ -24,6 +24,7 @@
 #define CREAR_PROCESO 0
 #define TERMINAR_PROCESO 1
 #define ESCRIBIR 2
+#define OBTENER_ID_PROCESO 3
 
 #endif /* _LLAMSIS_H */
 
