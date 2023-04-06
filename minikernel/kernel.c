@@ -177,10 +177,11 @@ static void exc_arit(){
 
 /*
  * Tratamiento de excepciones en el acceso a memoria
+ * Si se accede a un parametro  de la zona de usuario, no se debe producir panico, sino que se aborta el proceso
  */
 static void exc_mem(){
 
-	if (!viene_de_modo_usuario())
+	if (!viene_de_modo_usuario() && zona_mem_proc_usuario == 0)
 		panico("excepcion de memoria cuando estaba dentro del kernel");
 
 
@@ -206,9 +207,10 @@ static void int_terminal(){
  * Tratamiento de interrupciones de reloj
  */
 static void int_reloj(){
-
-	printk("-> TRATANDO INT. DE RELOJ\n");
+	num_int_reloj++;
+	printk("-> TRATANDO INT. DE RELOJ Nº %d\n", num_int_reloj);
 	tratamiento_int_dormir();
+	tratamiento_uso_procesador();
     return;
 }
 
@@ -269,6 +271,8 @@ static int crear_tarea(char *prog){
 		p_proc->estado=LISTO;
 		
 		p_proc->dormir = 0;
+		p_proc->tiempo_usuario = 0;
+		p_proc->tiempo_sistema = 0;
 
 		/* lo inserta al final de cola de listos */
 		insertar_ultimo(&lista_listos, p_proc);
@@ -397,6 +401,37 @@ void tratamiento_int_dormir(){
 			fijar_nivel_int(nivel_interrupcion);
 		}
 		p_proc = siguiente;
+	}
+}
+
+/**
+* Llamada que devuelve el numero de interrupciones que se han producio desde que arrancó el sistema. 
+* Si recibe un puntero no nulo, devuelve cuantas veces en la interrupcion de reloj se ha detectado que el proceso estaba ejecutado en modo usuario (campo usuario) y cuantas en modo sistema (campo sistema).
+* Si no hay proceso listo, estará ejecutando el último que se bloqueó. En este caso, no hay que imputarle tiempo de ejecución.
+*/
+int tiempos_proceso(){
+	printk("-> PROC %d: TIEMPOS PROCESO\n", p_proc_actual->id);
+	struct tiempos_ejec *t_ejec = (struct tiempos_ejec *) leer_registro(1);
+
+	if(t_ejec != NULL){
+		// Flag para saber que estamos en zona de memoria de proceso usuario
+		zona_mem_proc_usuario = 1;
+		t_ejec->usuario = p_proc_actual->tiempo_usuario;
+		t_ejec->sistema = p_proc_actual->tiempo_sistema;
+	}
+	zona_mem_proc_usuario = 0;
+
+	return num_int_reloj;
+}
+void tratamiento_uso_procesador(){
+	printk("-> SUMANDO TICKS AL PROCESO\n");
+	BCPptr *p_proc = lista_listos.primero;
+	if(p_proc != NULL){
+		if(viene_de_modo_usuario()){
+			p_proc_actual->tiempo_usuario++;
+		}else{
+			p_proc_actual->tiempo_sistema++;
+		}
 	}
 }
 

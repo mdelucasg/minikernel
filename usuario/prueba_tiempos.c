@@ -1,9 +1,9 @@
 /*
  * usuario/prueba_tiempos.c
  *
- *  Minikernel. Versión 1.0
+ *  Minikernel. Versiï¿½n 1.0
  *
- *  Fernando Pérez Costoya
+ *  Fernando Pï¿½rez Costoya
  *
  */
 
@@ -13,8 +13,8 @@
 
 #include "servicios.h"
 
-#define TOT_ITER_FASE1 50000   /* ponga las que considere oportuno */
-#define TOT_ITER_FASE2 20000000      /* ponga las que considere oportuno */
+#define TOT_ITER_FASE1 500000   		/* ponga las que considere oportuno */
+#define TOT_ITER_FASE2 200000000   	/* ponga las que considere oportuno */
 
 static void imp_tiempos(int real, int usuario, int sistema) {
 	printf("Ticks: Real %d Usuario %d Sistema %d\n",
@@ -33,7 +33,8 @@ int main(){
 	printf("PRIMERA FASE: HACE LLAMADAS AL SISTEMA\n");
 	
         for (i=0; i<TOT_ITER_FASE1; i++)
-                printf("prueba_tiempos: i %d\n", i);
+                if(i==50000) printf("prueba_tiempos: i %d\n", i);
+				
 
 	printf("FIN PRIMERA FASE\n");
 	t1=tiempos_proceso(&tiempos_f1);
@@ -62,13 +63,13 @@ int main(){
 
 	printf("PASANDO ARGUMENTO ERRONEO\n");
 
-	/* Debe sobrevivir después de abortar el proceso */ 
+	/* Debe sobrevivir despuï¿½s de abortar el proceso */ 
 	if (crear_proceso("simplon")<0)
 		printf("Error creando simplon\n");
 
 	tiempos_proceso((struct tiempos_ejec *) main);
-        tot--;
-        t0--;
+    tot--;
+    t0--;
 
 	printf("prueba_tiempos: termina. NO DEBE SALIR\n");
 	return 0; 

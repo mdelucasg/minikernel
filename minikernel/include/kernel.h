@@ -37,7 +37,10 @@ typedef struct BCP_t {
 	void * pila;		/* dir. inicial de la pila */
 	BCPptr siguiente;	/* puntero a otro BCP */
 	void *info_mem;		/* descriptor del mapa de memoria */
-	int dormir;			/* tiempo que debe dormir */
+	int dormir;			/* tiempo que debe dormir */	
+	int tiempo_sistema;		/* tiempo de ejecucion en modo sistema */
+	int tiempo_usuario;		/* tiempo de ejecucion en modo usuario */
+
 } BCP;
 
 /*
@@ -77,6 +80,16 @@ lista_BCPs lista_listos= {NULL, NULL};
 lista_BCPs lista_bloqueados= {NULL, NULL};
 
 /*
+*	Variable global que representa el numero total de interrupciones de reloj
+*/
+int num_int_reloj = 0;
+/*
+*	Variable global que representa si estamos accediendo a una zona de memoria del proceso de usuario
+* 0: representa que no estamos accediendo a una zona de memoria del proceso de usuario
+*/
+int zona_mem_proc_usuario = 0;
+
+/*
  *
  * Definici�n del tipo que corresponde con una entrada en la tabla de
  * llamadas al sistema.
@@ -86,6 +99,11 @@ typedef struct{
 	int (*fservicio)();
 } servicio;
 
+// Estructura para guardar los tiempos de ejecucion de los procesos
+struct tiempos_ejec {
+    int usuario;
+    int sistema;
+};
 
 /*
  * Prototipos de las rutinas que realizan cada llamada al sistema
@@ -95,6 +113,7 @@ int sis_terminar_proceso();
 int sis_escribir();
 int obtener_id_pr();
 int dormir();
+int tiempos_proceso();
 
 
 /*
@@ -105,13 +124,15 @@ servicio tabla_servicios[NSERVICIOS]={
 	{sis_terminar_proceso},
 	{sis_escribir},
 	{obtener_id_pr},
-	{dormir}
+	{dormir},
+	{tiempos_proceso}
 };
 
 /**
 *	Tratamiento de la interrupcion de reloj para la llamada dormir(int segundos);
 */
 void tratamiento_int_dormir();
+void tratamiento_uso_procesador();
 
 #endif /* _KERNEL_H */
 
