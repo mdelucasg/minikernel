@@ -76,7 +76,7 @@ static void eliminar_primero(lista_BCPs *lista){
 
 /*
  * Elimina un determinado BCP de la lista.
- */
+ 
 static void eliminar_elem(lista_BCPs *lista, BCP * proc){
 	BCP *paux=lista->primero;
 
@@ -92,6 +92,7 @@ static void eliminar_elem(lista_BCPs *lista, BCP * proc){
 		}
 	}
 }
+*/
 
 /*
  *
@@ -207,8 +208,8 @@ static void int_terminal(){
 static void int_reloj(){
 
 	printk("-> TRATANDO INT. DE RELOJ\n");
-
-        return;
+	tratamiento_int_dormir();
+    return;
 }
 
 /*
@@ -266,6 +267,8 @@ static int crear_tarea(char *prog){
 			&(p_proc->contexto_regs));
 		p_proc->id=proc;
 		p_proc->estado=LISTO;
+		
+		p_proc->dormir = 0;
 
 		/* lo inserta al final de cola de listos */
 		insertar_ultimo(&lista_listos, p_proc);
@@ -333,6 +336,68 @@ int sis_terminar_proceso(){
 */
 int obtener_id_pr(){
 	return p_proc_actual->id;
+}
+
+/**
+* Llamada que permita que un proceso pueda qudarse bloqueado un plazo de tiempo
+* Pautas:
+* Modificar el BCP para incluir algún campo relacionado con esta llamada.
+* Definir una lista de procesos esperando plazos.
+* Incluir la llamada que, entre otras labores, debe poner al proceso en estado bloqueado, reajustar las listas de
+BCPs correspondientes y realizar el cambio de contexto.
+* Añadir a la rutina de interrupción la detección de si se cumple el plazo de algún proceso dormido. Si es así,
+debe cambiarle de estado y reajustar las listas correspondientes.
+* Revisar el código del sistema para detectar posibles problemas de sincronización y solucionarlos
+adecuadamente.
+* Se usan los registros para el paso de parametros del sistema
+*/
+int dormir(){
+	unsigned int segundos = (unsigned int) leer_registro(1);
+	//printk("-> PROC %d: DORMIR %d SEGUNDOS\n", p_proc_actual->id, segundos);
+	// Fijar nivel de interrupción a 3
+	int nivel_interrupcion = fijar_nivel_int(NIVEL_3);
+
+	BCP *p_proc = p_proc_actual;
+	p_proc->estado = BLOQUEADO;
+	// Los procesos duerment el numero de ticks apropiados
+	p_proc->dormir = segundos*TICK;
+
+	// Reajustar listas BCP (primero se elimina y luego se inserta)
+	eliminar_primero(&lista_listos);
+	insertar_ultimo(&lista_bloqueados, p_proc);
+
+
+	// Cambio contexto voluntario
+	p_proc_actual = planificador();
+	cambio_contexto(&(p_proc->contexto_regs), &(p_proc_actual->contexto_regs));
+	
+	// Restaurar nivel de interrupción
+	fijar_nivel_int(nivel_interrupcion);
+
+	return 0;
+}
+
+void tratamiento_int_dormir(){
+	//printk("-> TRATANDO INT. DE RELOJ PARA PROCESOS DORMIDOS\n");
+
+	BCP *p_proc = lista_bloqueados.primero;
+	BCP *siguiente = NULL;
+
+	while(p_proc != NULL){
+		siguiente = p_proc->siguiente;
+		if(p_proc->dormir > 0){
+			p_proc->dormir--;
+		}else{
+			int nivel_interrupcion = fijar_nivel_int(NIVEL_3);
+
+			p_proc->estado = LISTO;
+			eliminar_primero(&lista_bloqueados);
+			insertar_ultimo(&lista_listos, p_proc);
+			
+			fijar_nivel_int(nivel_interrupcion);
+		}
+		p_proc = siguiente;
+	}
 }
 
 /*

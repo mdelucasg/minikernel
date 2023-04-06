@@ -31,12 +31,13 @@
 typedef struct BCP_t *BCPptr;
 
 typedef struct BCP_t {
-        int id;				/* ident. del proceso */
-        int estado;			/* TERMINADO|LISTO|EJECUCION|BLOQUEADO*/
-        contexto_t contexto_regs;	/* copia de regs. de UCP */
-        void * pila;			/* dir. inicial de la pila */
-	BCPptr siguiente;		/* puntero a otro BCP */
-	void *info_mem;			/* descriptor del mapa de memoria */
+	int id;				/* ident. del proceso */
+	int estado;			/* TERMINADO|LISTO|EJECUCION|BLOQUEADO*/
+	contexto_t contexto_regs;	/* copia de regs. de UCP */
+	void * pila;		/* dir. inicial de la pila */
+	BCPptr siguiente;	/* puntero a otro BCP */
+	void *info_mem;		/* descriptor del mapa de memoria */
+	int dormir;			/* tiempo que debe dormir */
 } BCP;
 
 /*
@@ -71,6 +72,11 @@ BCP tabla_procs[MAX_PROC];
 lista_BCPs lista_listos= {NULL, NULL};
 
 /*
+ * Variable global que representa la cola de procesos bloqueados que estan esperando plazos (llamada dormir(int segundos); )
+ */
+lista_BCPs lista_bloqueados= {NULL, NULL};
+
+/*
  *
  * Definici�n del tipo que corresponde con una entrada en la tabla de
  * llamadas al sistema.
@@ -88,14 +94,24 @@ int sis_crear_proceso();
 int sis_terminar_proceso();
 int sis_escribir();
 int obtener_id_pr();
+int dormir();
+
 
 /*
  * Variable global que contiene las rutinas que realizan cada llamada
  */
-servicio tabla_servicios[NSERVICIOS]={	{sis_crear_proceso},
-					{sis_terminar_proceso},
-					{sis_escribir},
-					{obtener_id_pr}};
+servicio tabla_servicios[NSERVICIOS]={	
+	{sis_crear_proceso},
+	{sis_terminar_proceso},
+	{sis_escribir},
+	{obtener_id_pr},
+	{dormir}
+};
+
+/**
+*	Tratamiento de la interrupcion de reloj para la llamada dormir(int segundos);
+*/
+void tratamiento_int_dormir();
 
 #endif /* _KERNEL_H */
 

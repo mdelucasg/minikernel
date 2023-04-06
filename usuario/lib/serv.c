@@ -37,14 +37,20 @@ int llamsis(int llamada, int nargs, ... /* args */);
 int crear_proceso(char *prog){
 	return llamsis(CREAR_PROCESO, 1, (long)prog);
 }
+
 int terminar_proceso(){
 	return llamsis(TERMINAR_PROCESO, 0);
 }
+
 int escribir(char *texto, unsigned int longi){
 	return llamsis(ESCRIBIR, 2, (long)texto, (long)longi);
 }
 
-Int obtener_id_pr(){
+int obtener_id_pr(){
    return llamsis(OBTENER_ID_PROCESO, 0);
+}
+
+int dormir(unsigned int segundos){
+   return llamsis(DORMIR, 1, segundos);
 }
 

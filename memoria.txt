@@ -7,5 +7,12 @@ Calendario de actualizaciones:
 04/04: 
 	Lectura y compresion de la practica. 
 	Se ha creado un repositorio de GitHub.
+05/04:
+	Primera toma de contacto haciendo el obtener_id_pr()
+	Se entrega, pero no compila el init
+06/04:
+	Se corrige problemas obtener_id_pr()
+	Se realiza dormir() probando que en el terminal se comporta como se espera
 
+	Se entrega y se obtiene un: 
 
