@@ -444,8 +444,7 @@ int tiempos_proceso(){
 }
 void tratamiento_uso_procesador(){
 	//printk("-> SUMANDO TICKS AL PROCESO\n");
-	BCPptr p_proc = lista_listos.primero;
-	if(p_proc != NULL){
+	if(p_proc_actual->estado != BLOQUEADO && p_proc_actual->siguiente != NULL){
 		if(viene_de_modo_usuario()){
 			p_proc_actual->tiempo_usuario++;
 		}else{
