@@ -54,15 +54,15 @@ ALGO COMENTE ESTA PARTE Y DESCOMENTE LA PRUEBA CORRESPONDIENTE */
 }
 */
 
-/* PRUEBA DE LA LLAMADA DORMIR
+/* PRUEBA DE LA LLAMADA DORMIR*/
 	if (crear_proceso("prueba_dormir")<0)
 		printf("Error creando prueba_dormir\n");
-*/
 
-/* PRUEBA DE LA LLAMADA TIEMPOS_PROCESO*/
+
+/* PRUEBA DE LA LLAMADA TIEMPOS_PROCESO
 	if (crear_proceso("prueba_tiempos")<0)
 		printf("Error creando prueba_tiempos\n");
-
+*/
 
 /* PRIMERA PRUEBA DE MUTEX
 	if (crear_proceso("prueba_mutex1")<0)

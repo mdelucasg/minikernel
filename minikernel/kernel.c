@@ -41,7 +41,27 @@ static int buscar_BCP_libre(){
 	for (i=0; i<MAX_PROC; i++)
 		if (tabla_procs[i].estado==NO_USADA)
 			return i;
-	return -1;
+	return ERROR_GENERICO;
+}
+
+/*
+*	Funciones relacionadas con la tabla de mutex:
+*	iniciar_tabla_mutex buscar_mutex_libre buscar_mutex_repetidos
+* NO_USADA 
+*/
+static void iniciar_tabla_mutex(){
+	for (int i=0; i<NUM_MUT; i++)
+		tabla_mutex[i].estado=NO_USADA;
+}
+static int buscar_mutex_libre_y_no_repetido(char *nombre){
+	for (int i=0; i<NUM_MUT; i++){
+		if (tabla_mutex[i].estado!=NO_USADA && cmp(tabla_mutex[i].nombre,nombre)==1){
+			return ERROR_NOMBRE_REPETIDO;
+		}
+		if (tabla_mutex[i].estado==NO_USADA)
+			return i;
+	}
+	return ERROR_MAX_NUM_MUTEX;
 }
 
 /*
@@ -76,7 +96,7 @@ static void eliminar_primero(lista_BCPs *lista){
 
 /*
  * Elimina un determinado BCP de la lista.
- 
+*/
 static void eliminar_elem(lista_BCPs *lista, BCP * proc){
 	BCP *paux=lista->primero;
 
@@ -92,7 +112,6 @@ static void eliminar_elem(lista_BCPs *lista, BCP * proc){
 		}
 	}
 }
-*/
 
 /*
  *
@@ -389,16 +408,16 @@ void tratamiento_int_dormir(){
 
 	while(p_proc != NULL){
 		siguiente = p_proc->siguiente;
-		if(p_proc->dormir > 0){
-			p_proc->dormir--;
-		}else{
+		p_proc->dormir--;
+		if(p_proc->dormir == 0){
 			int nivel_interrupcion = fijar_nivel_int(NIVEL_3);
 
 			p_proc->estado = LISTO;
-			eliminar_primero(&lista_bloqueados);
+			eliminar_elem(&lista_bloqueados, p_proc);
 			insertar_ultimo(&lista_listos, p_proc);
 			
 			fijar_nivel_int(nivel_interrupcion);
+		
 		}
 		p_proc = siguiente;
 	}
@@ -424,8 +443,8 @@ int tiempos_proceso(){
 	return num_int_reloj;
 }
 void tratamiento_uso_procesador(){
-	printk("-> SUMANDO TICKS AL PROCESO\n");
-	BCPptr *p_proc = lista_listos.primero;
+	//printk("-> SUMANDO TICKS AL PROCESO\n");
+	BCPptr p_proc = lista_listos.primero;
 	if(p_proc != NULL){
 		if(viene_de_modo_usuario()){
 			p_proc_actual->tiempo_usuario++;
@@ -433,6 +452,86 @@ void tratamiento_uso_procesador(){
 			p_proc_actual->tiempo_sistema++;
 		}
 	}
+}
+
+/**
+* Crear mutex con el nombre y tipo especificados.
+* Devuelve un entero que representa un descriptor para acceder al mutex. En caso de error devuelve un numero negativo.
+*/
+int crear_mutex(){
+	printk("-> PROC %d: CREAR MUTEX\n", p_proc_actual->id);
+	char *nombre = (char *) leer_registro(1);
+	int tipo = (int) leer_registro(2);
+	Mutex *mutex;
+	int descriptor_mutex; /*contador numero de mutex*/
+
+	// Comprobar que el nombre no sea demasiado largo
+	if(len(nombre) > MAX_NOM_MUT){
+		return ERROR_LONGITUD_NOMBRE;
+	}
+	// Comprobar que no existe un mutex con ese nombre
+	descriptor_mutex = buscar_mutex_libre_y_no_repetido(nombre);
+	if(descriptor_mutex == ERROR_MAX_NUM_MUTEX){
+		return ERROR_MAX_NUM_MUTEX;
+	}
+	if(descriptor_mutex == ERROR_NOMBRE_REPETIDO){
+		return ERROR_NOMBRE_REPETIDO;
+	}
+	// Comprobar que proceso no tiene mas de NUM_MUT_PROC
+	if(p_proc_actual->num_mutex >= NUM_MUT_PROC){
+		return ERROR_MAX_NUM_MUTEX_PROC;
+	}
+	// Crear mutex
+	num_mutex ++;
+	mutex = &tabla_mutex[descriptor_mutex];
+	cpy(mutex->nombre, nombre);
+	mutex->tipo = tipo;
+	mutex->estado = LIBRE;
+	mutex->id_proceso = p_proc_actual->id;
+	p_proc_actual->num_mutex++;
+
+	// Devolver descriptor
+	return descriptor_mutex;
+}
+
+/**
+*	Función auxiliar para obtener longitud de un string
+*/
+int len(char *string){
+	int i = 0;
+	while(string[i] != '\0'){
+		i++;
+	}
+	return i;
+}
+
+/**
+*   Funcion auxiliar para comparar si dos string son iguales
+*/
+int cmp(char *s1, char *s2){
+	int i = 0;
+	while(s1[i] != '\0' && s2[i] != '\0'){
+		if(s1[i] != s2[i]){
+			return 0;
+		}
+		i++;
+	}
+	if(s1[i] == '\0' && s2[i] == '\0'){
+		return 1;
+	}
+	return 0;
+}
+
+/**
+*	Funcion auxiliar para copiar un string en otro
+*/
+void cpy(char *dest, char *orig){
+	int i = 0;
+	while(orig[i] != '\0'){
+		dest[i] = orig[i];
+		i++;
+	}
+	dest[i] = '\0';
 }
 
 /*
@@ -455,6 +554,8 @@ int main(){
 	iniciar_cont_teclado();		/* inici cont. teclado */
 
 	iniciar_tabla_proc();		/* inicia BCPs de tabla de procesos */
+
+	iniciar_tabla_mutex();		/* inicia mutex de tabla de mutex */
 
 	/* crea proceso inicial */
 	if (crear_tarea((void *)"init")<0)

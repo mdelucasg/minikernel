@@ -58,3 +58,6 @@ int tiempos_proceso(struct tiempos_ejec *t_ejec){
    return llamsis(TIEMPOS_PROCESO, 1, (long) t_ejec);
 }
 
+int crear_mutex(char *nombre, int tipo){
+   return llamsis(CREAR_MUTEX, 2, (long) nombre, (long) tipo);
+}

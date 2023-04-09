@@ -28,6 +28,12 @@ struct tiempos_ejec {
     int sistema;
 };
 
+/**
+*	Constantes para la especificación del tipo de mutex
+*/
+#define NO_RECURSIVO 0 
+#define RECURSIVO 1
+
 /* Funcion de biblioteca */
 int escribirf(const char *formato, ...);
 
@@ -38,6 +44,7 @@ int escribir(char *texto, unsigned int longi);
 int obtener_id_pr();
 int dormir(unsigned int segundos);
 int tiempos_proceso(struct tiempos_ejec *t_ejec);
+int crear_mutex(char *nombre, int tipo);
 
 #endif /* SERVICIOS_H */
 
