@@ -1,9 +1,9 @@
 /*
  * usuario/simplon.c
  *
- *  Minikernel. Versión 1.0
+ *  Minikernel. Versiï¿½n 1.0
  *
- *  Fernando Pérez Costoya
+ *  Fernando Pï¿½rez Costoya
  *
  */
 
@@ -13,13 +13,13 @@
 
 #include "servicios.h"
 
-#define TOT_ITER 200 /* ponga las que considere oportuno */
+#define TOT_ITER 2000000000 /* ponga las que considere oportuno */
 
 int main(){
 	int i;
 
 	for (i=0; i<TOT_ITER; i++)
-		printf("simplon: i %d\n", i);
+		if(i==TOT_ITER-1) printf("simplon: i %d\n", i);
 
 	printf("simplon: termina\n");
 	return 0;

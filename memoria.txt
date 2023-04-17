@@ -13,6 +13,19 @@ Calendario de actualizaciones:
 06/04:
 	Se corrige problemas obtener_id_pr()
 	Se realiza dormir() probando que en el terminal se comporta como se espera
-
 	Se entrega y se obtiene un: 
+	1.5
+	Se empieza a implementar la parte de mutex, pero sin terminarla.
 
+11/04:
+	Se trabaja para solucionar los problemas con tiempos_procesos. Después de la clase, se pregunta al profesor y se soluciona el problema
+	Se obtiene un 3.125
+	
+17/04:
+	Se trabaja en solucionar los problemas con los mutex. 
+	Se ent
+	
+
+Trabajando con las interrupciones:
+	En un primer momento, se entiende después de leer el enunciado que siempre que se modifiquen estructuras de datos de los procesos (lista de procesos listos o lista de procesos bloqueados, BCP del proceso actual) se deben inhibir las interrupciones para que cada proceso no se quede en estados inconsistentes.
+	Cuando se pasaron las pruebas de dormir y tiempos procesos, me percaté de que en más sitios de los que había securizado las operaciones.

@@ -53,9 +53,10 @@ static void iniciar_tabla_mutex(){
 	for (int i=0; i<NUM_MUT; i++)
 		tabla_mutex[i].estado=NO_USADA;
 }
+
 static int buscar_mutex_libre_y_no_repetido(char *nombre){
 	for (int i=0; i<NUM_MUT; i++){
-		if (tabla_mutex[i].estado!=NO_USADA && cmp(tabla_mutex[i].nombre,nombre)==1){
+		if (tabla_mutex[i].estado != NO_USADA && cmp(tabla_mutex[i].nombre, nombre) == 1){
 			return ERROR_NOMBRE_REPETIDO;
 		}
 		if (tabla_mutex[i].estado==NO_USADA)
@@ -63,6 +64,16 @@ static int buscar_mutex_libre_y_no_repetido(char *nombre){
 	}
 	return ERROR_MAX_NUM_MUTEX;
 }
+
+static int buscar_mutex(char *nombre){
+	for (int i=0; i<NUM_MUT; i++){
+		if (cmp(tabla_mutex[i].nombre, nombre) ==1 ){
+			return i;
+		}
+	}
+	return ERROR_MUTEX_NO_EXISTE;
+}
+
 
 /*
  *
@@ -125,7 +136,7 @@ static void eliminar_elem(lista_BCPs *lista, BCP * proc){
 static void espera_int(){
 	int nivel;
 
-	printk("-> NO HAY LISTOS. ESPERA INT\n");
+	//printk("-> NO HAY LISTOS. ESPERA INT\n");
 
 	/* Baja al mnimo el nivel de interrupcin mientras espera */
 	nivel=fijar_nivel_int(NIVEL_1);
@@ -227,9 +238,9 @@ static void int_terminal(){
  */
 static void int_reloj(){
 	num_int_reloj++;
-	printk("-> TRATANDO INT. DE RELOJ Nº %d\n", num_int_reloj);
-	tratamiento_int_dormir();
+	//printk("-> TRATANDO INT. DE RELOJ Nº %d\n", num_int_reloj);
 	tratamiento_uso_procesador();
+	tratamiento_int_dormir();
     return;
 }
 
@@ -283,15 +294,18 @@ static int crear_tarea(char *prog){
 	{
 		p_proc->info_mem=imagen;
 		p_proc->pila=crear_pila(TAM_PILA);
-		fijar_contexto_ini(p_proc->info_mem, p_proc->pila, TAM_PILA,
-			pc_inicial,
-			&(p_proc->contexto_regs));
+		fijar_contexto_ini(p_proc->info_mem, p_proc->pila, TAM_PILA, pc_inicial, &(p_proc->contexto_regs));
 		p_proc->id=proc;
 		p_proc->estado=LISTO;
 		
 		p_proc->dormir = 0;
 		p_proc->tiempo_usuario = 0;
 		p_proc->tiempo_sistema = 0;
+
+		for(int i = 0; i < NUM_MUT_PROC; i++){
+			p_proc->descriptores_mutex[i] = NO_USADA;
+		}
+		p_proc->num_mutex = 0;
 
 		/* lo inserta al final de cola de listos */
 		insertar_ultimo(&lista_listos, p_proc);
@@ -320,7 +334,9 @@ int sis_crear_proceso(){
 
 	printk("-> PROC %d: CREAR PROCESO\n", p_proc_actual->id);
 	prog=(char *)leer_registro(1);
+	int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
 	res=crear_tarea(prog);
+	fijar_nivel_int(nivel_interrupcion_previo);
 	return res;
 }
 
@@ -378,7 +394,7 @@ int dormir(){
 	unsigned int segundos = (unsigned int) leer_registro(1);
 	//printk("-> PROC %d: DORMIR %d SEGUNDOS\n", p_proc_actual->id, segundos);
 	// Fijar nivel de interrupción a 3
-	int nivel_interrupcion = fijar_nivel_int(NIVEL_3);
+	int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
 
 	BCP *p_proc = p_proc_actual;
 	p_proc->estado = BLOQUEADO;
@@ -395,7 +411,7 @@ int dormir(){
 	cambio_contexto(&(p_proc->contexto_regs), &(p_proc_actual->contexto_regs));
 	
 	// Restaurar nivel de interrupción
-	fijar_nivel_int(nivel_interrupcion);
+	fijar_nivel_int(nivel_interrupcion_previo);
 
 	return 0;
 }
@@ -410,13 +426,13 @@ void tratamiento_int_dormir(){
 		siguiente = p_proc->siguiente;
 		p_proc->dormir--;
 		if(p_proc->dormir == 0){
-			int nivel_interrupcion = fijar_nivel_int(NIVEL_3);
+			int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
 
 			p_proc->estado = LISTO;
 			eliminar_elem(&lista_bloqueados, p_proc);
 			insertar_ultimo(&lista_listos, p_proc);
 			
-			fijar_nivel_int(nivel_interrupcion);
+			fijar_nivel_int(nivel_interrupcion_previo);
 		
 		}
 		p_proc = siguiente;
@@ -429,22 +445,23 @@ void tratamiento_int_dormir(){
 * Si no hay proceso listo, estará ejecutando el último que se bloqueó. En este caso, no hay que imputarle tiempo de ejecución.
 */
 int tiempos_proceso(){
-	printk("-> PROC %d: TIEMPOS PROCESO\n", p_proc_actual->id);
+	//printk("-> PROC %d: TIEMPOS PROCESO\n", p_proc_actual->id);
 	struct tiempos_ejec *t_ejec = (struct tiempos_ejec *) leer_registro(1);
-
+	int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
 	if(t_ejec != NULL){
 		// Flag para saber que estamos en zona de memoria de proceso usuario
 		zona_mem_proc_usuario = 1;
 		t_ejec->usuario = p_proc_actual->tiempo_usuario;
 		t_ejec->sistema = p_proc_actual->tiempo_sistema;
+		zona_mem_proc_usuario = 0;
 	}
-	zona_mem_proc_usuario = 0;
-
+	fijar_nivel_int(nivel_interrupcion_previo);
 	return num_int_reloj;
 }
 void tratamiento_uso_procesador(){
 	//printk("-> SUMANDO TICKS AL PROCESO\n");
-	if(p_proc_actual->estado != BLOQUEADO && p_proc_actual->siguiente != NULL){
+	BCPptr p_proc = lista_listos.primero;
+	if(p_proc != NULL){
 		if(viene_de_modo_usuario()){
 			p_proc_actual->tiempo_usuario++;
 		}else{
@@ -458,39 +475,111 @@ void tratamiento_uso_procesador(){
 * Devuelve un entero que representa un descriptor para acceder al mutex. En caso de error devuelve un numero negativo.
 */
 int crear_mutex(){
-	printk("-> PROC %d: CREAR MUTEX\n", p_proc_actual->id);
+	printk("-> PROC %d: CREAR MUTEX %d\n", p_proc_actual->id, p_proc_actual->num_mutex);
 	char *nombre = (char *) leer_registro(1);
 	int tipo = (int) leer_registro(2);
 	Mutex *mutex;
-	int descriptor_mutex; /*contador numero de mutex*/
+	int descriptor_mutex; /*descriptor del mutex*/
+
+	// Comprobar que no se ha alcanzado el maximo numero de mutex
+	while(num_mutex_global >= NUM_MUT){
+		printk("ERROR: Se ha alcanzado el maximo numero de mutex, %d \n", num_mutex_global);
+		esperar_hueco_mutex();
+	}
 
 	// Comprobar que el nombre no sea demasiado largo
 	if(len(nombre) > MAX_NOM_MUT){
+		printk("ERROR: El nombre del mutex es demasiado largo\n");
 		return ERROR_LONGITUD_NOMBRE;
 	}
+
+	// Comprobar que proceso no tiene mas de NUM_MUT_PROC
+	if(p_proc_actual->num_mutex >= NUM_MUT_PROC){
+		printk("ERROR: El proceso %d tiene demasiados mutex, \n", p_proc_actual->id, p_proc_actual->num_mutex);
+		return ERROR_MAX_NUM_MUTEX_PROC;
+	}
+
 	// Comprobar que no existe un mutex con ese nombre
 	descriptor_mutex = buscar_mutex_libre_y_no_repetido(nombre);
 	if(descriptor_mutex == ERROR_MAX_NUM_MUTEX){
+		printk("ERROR: Se ha alcanzado el maximo numero de mutex\n");
 		return ERROR_MAX_NUM_MUTEX;
 	}
+
 	if(descriptor_mutex == ERROR_NOMBRE_REPETIDO){
+		printk("ERROR: Ya existe un mutex con ese nombre\n");
 		return ERROR_NOMBRE_REPETIDO;
+	}
+
+	// Crear mutex
+	num_mutex_global ++;
+	mutex = &tabla_mutex[descriptor_mutex];
+	mutex->tipo = tipo;
+	mutex->estado = OCUPADO;
+	mutex->id_proceso = p_proc_actual->id;
+	cpy(mutex->nombre, nombre);
+
+	p_proc_actual->descriptores_mutex[p_proc_actual->num_mutex] = descriptor_mutex;
+	p_proc_actual->num_mutex++;
+
+	// Devolver descriptor
+	return descriptor_mutex;
+}
+
+/**
+* 	Funcion auxiliar para esperar hasta que haya hueco en la tabla de mutex
+*/
+void esperar_hueco_mutex(){
+	//printk("-> PROC %d: ESPERANDO HUECO MUTEX\n", p_proc_actual->id);
+	p_proc_actual->estado = BLOQUEADO;
+	int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
+	eliminar_elem(&lista_listos, p_proc_actual);
+	insertar_ultimo(&lista_bloqueados, p_proc_actual);
+	fijar_nivel_int(nivel_interrupcion_previo);
+	BCPptr p_proc = p_proc_actual;
+	p_proc_actual = planificador();
+	cambio_contexto(&(p_proc->contexto_regs), &(p_proc_actual->contexto_regs));
+}
+
+/**
+*	Devuelve un descriptor asociado a un mutex ya existente o un número negativo en caso de error
+*/
+int abrir_mutex(){
+	printk("-> PROC %d: ABRIR MUTEX\n", p_proc_actual->id);
+	char *nombre = (char *) leer_registro(1);
+
+	int descriptor_mutex = buscar_mutex(nombre);
+	if(descriptor_mutex < 0){
+		return ERROR_MUTEX_NO_EXISTE;
 	}
 	// Comprobar que proceso no tiene mas de NUM_MUT_PROC
 	if(p_proc_actual->num_mutex >= NUM_MUT_PROC){
 		return ERROR_MAX_NUM_MUTEX_PROC;
 	}
-	// Crear mutex
-	num_mutex ++;
-	mutex = &tabla_mutex[descriptor_mutex];
-	cpy(mutex->nombre, nombre);
-	mutex->tipo = tipo;
-	mutex->estado = LIBRE;
-	mutex->id_proceso = p_proc_actual->id;
+	p_proc_actual->descriptores_mutex[p_proc_actual->num_mutex] = descriptor_mutex;
 	p_proc_actual->num_mutex++;
-
-	// Devolver descriptor
 	return descriptor_mutex;
+}
+
+/**
+* 	 Cierra el mutex especificado, devolviendo un número negativo en caso de error.
+*/
+int cerrar_mutex(){
+	printk("-> PROC %d: CERRAR MUTEX\n", p_proc_actual->id);
+	unsigned int mutexid = (unsigned int) leer_registro(1);
+	
+	int descriptor = p_proc_actual->descriptores_mutex[mutexid];
+	if(descriptor < 0){
+		return ERROR_MUTEX_NO_EXISTE;
+	}
+	Mutex *mutex = &tabla_mutex[descriptor];
+	mutex->estado = LIBRE;
+	mutex->id_proceso = -1;
+
+	p_proc_actual->descriptores_mutex[mutexid] = -1;
+	p_proc_actual->num_mutex--;
+	num_mutex_global--;
+	return 0;
 }
 
 /**

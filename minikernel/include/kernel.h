@@ -40,6 +40,7 @@ typedef struct BCP_t {
 	int dormir;			/* tiempo que debe dormir */	
 	int tiempo_sistema;		/* tiempo de ejecucion en modo sistema */
 	int tiempo_usuario;		/* tiempo de ejecucion en modo usuario */
+	int descriptores_mutex[NUM_MUT_PROC];			/* descriptor mutex que tiene asociado el proceso */
 	int num_mutex; /* numero de mutex que tiene el proceso */
 
 } BCP;
@@ -109,7 +110,7 @@ struct tiempos_ejec {
 /**
 *	Configuracion del mutex
 */
-int num_mutex = 0; /* Numero de mutex creados*/
+int num_mutex_global = 0; /* Numero de mutex creados*/
 
 // Estados mutex
 #define LIBRE 0
@@ -125,10 +126,12 @@ int num_mutex = 0; /* Numero de mutex creados*/
 #define ERROR_MAX_NUM_MUTEX -11
 #define ERROR_NOMBRE_REPETIDO -12
 #define ERROR_MAX_NUM_MUTEX_PROC -13
+#define ERROR_MUTEX_NO_EXISTE -14
 
 
 
 // Funciones auxiliares
+void esperar_hueco_mutex();
 int len(char *string);
 int cmp(char *s1, char *s2);
 void cpy(char *dest, char *orig);
@@ -155,6 +158,8 @@ int obtener_id_pr();
 int dormir();
 int tiempos_proceso();
 int crear_mutex();
+int abrir_mutex();
+int cerrar_mutex();
 
 
 /*
@@ -167,7 +172,9 @@ servicio tabla_servicios[NSERVICIOS]={
 	{obtener_id_pr},
 	{dormir},
 	{tiempos_proceso},
-	{crear_mutex}
+	{crear_mutex},
+	{abrir_mutex},
+	{cerrar_mutex}
 };
 
 /**
