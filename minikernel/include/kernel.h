@@ -42,7 +42,6 @@ typedef struct BCP_t {
 	int tiempo_usuario;		/* tiempo de ejecucion en modo usuario */
 	int descriptores_mutex[NUM_MUT_PROC];			/* descriptor mutex que tiene asociado el proceso */
 	int num_mutex; /* numero de mutex que tiene el proceso */
-
 } BCP;
 
 /*
@@ -79,7 +78,7 @@ lista_BCPs lista_listos= {NULL, NULL};
 /*
  * Variable global que representa la cola de procesos bloqueados que estan esperando plazos (llamada dormir(int segundos); )
  */
-lista_BCPs lista_bloqueados= {NULL, NULL};
+lista_BCPs lista_bloq_dormir= {NULL, NULL};
 
 /*
 *	Variable global que representa el numero total de interrupciones de reloj
@@ -113,6 +112,7 @@ struct tiempos_ejec {
 int num_mutex_global = 0; /* Numero de mutex creados*/
 
 // Estados mutex
+#define NO_USADO -1
 #define LIBRE 0
 #define OCUPADO 1
 
@@ -128,25 +128,29 @@ int num_mutex_global = 0; /* Numero de mutex creados*/
 #define ERROR_MAX_NUM_MUTEX_PROC -13
 #define ERROR_MUTEX_NO_EXISTE -14
 
-
-
-// Funciones auxiliares
-void esperar_hueco_mutex();
-int len(char *string);
-int cmp(char *s1, char *s2);
-void cpy(char *dest, char *orig);
-
 // Estructura para guardar los mutex
 typedef struct mutex {
 	char nombre[MAX_NOM_MUT];
 	int tipo;
 	int estado;
-	int id_proceso; /*id del proceso que tiene el mutex*/
-	int num_veces; /*numero de veces que se ha abierto*/
-	lista_BCPs procesos_bloqueados;
+	int n_proc_asociados; /*numero de veces que se ha abierto*/
+	int procs_asociados[MAX_PROC]; /*procesos que han creado|abierto este mutex*/
+	// Para lock
+	int id_proceso_lock; /*id del proceso que tiene el mutex*/
+	lista_BCPs procesos_bloqueados; /*lista de procesos bloqueados*/
 } Mutex;
 
 Mutex tabla_mutex[NUM_MUT];
+
+lista_BCPs lista_bloq_mutex= {NULL, NULL};
+
+// Funciones auxiliares
+void esperar_hueco_mutex(char *nombre);
+int cumple_requisitos(char *nombre, int descriptor_mutex);
+int esta_mutex_asociado_a_proc(int des);
+int len(char *string);
+int cmp(char *s1, char *s2);
+void cpy(char *dest, char *orig);
 
 /*
  * Prototipos de las rutinas que realizan cada llamada al sistema
