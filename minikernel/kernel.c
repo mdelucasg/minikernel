@@ -403,12 +403,9 @@ int sis_escribir()
  * funcion auxiliar liberar_proceso
  */
 int sis_terminar_proceso(){
-	// Limpiar mutex que tenga asociados
-	printk("-> FIN PROCESO CON %d\n", p_proc_actual->id);
-
+	printk("-> FIN PROCESO %d\n", p_proc_actual->id);
 	liberar_proceso();
-
-        return 0; /* no debera llegar aqui */
+    return 0; /* no debera llegar aqui */
 }
 //-----------------------------------------------------------------------------------------
 
@@ -517,13 +514,23 @@ void tratamiento_uso_procesador(){
 * Devuelve un entero que representa un descriptor para acceder al mutex. En caso de error devuelve un numero negativo.
 */
 int crear_mutex(){
-	printk("-> PROC %d: CREAR MUTEX %d of 16\n", p_proc_actual->id, num_mutex_global);
 	char *nombre = strdup((char *) leer_registro(1));
 	int tipo = (int) leer_registro(2);
+	printk("-> PROC %d: CREAR MUTEX %s\n", p_proc_actual->id, nombre);
 
 	Mutex *mutex;
-	int descriptor_mutex = buscar_mutex_libre_y_no_repetido(nombre);
-	printk("--> PROC %d: INTENTA CREAR MUTEX %s con descriptor %d\n", p_proc_actual->id, nombre, descriptor_mutex);
+	// Comprobar que el nombre no sea demasiado largo
+	if(len(nombre) > MAX_NOM_MUT){
+		printk("--->ERROR: El nombre del mutex es demasiado largo\n");
+		return ERROR_LONGITUD_NOMBRE;
+	}
+
+	// Comprobar que proceso no tiene mas de NUM_MUT_PROC
+	if(p_proc_actual->num_mutex >= NUM_MUT_PROC){
+		printk("--->ERROR: El proceso %d tiene demasiados mutex\n", p_proc_actual->id);
+		return ERROR_MAX_NUM_MUTEX_PROC;
+	}
+	printk("--> PROC %d: INTENTA CREAR MUTEX %s\n", p_proc_actual->id, nombre);
 	// Comprobar que no se ha alcanzado el maximo numero de mutex
 	while(num_mutex_global >= NUM_MUT){
 		printk("--->ERROR: Creando %s. Se ha alcanzado el maximo numero de mutex, %d \n", nombre, num_mutex_global);
@@ -540,7 +547,7 @@ int crear_mutex(){
 		cambio_contexto(&(p_proc->contexto_regs), &(p_proc_actual->contexto_regs));
 	}
 	// Volvemos a cogerlo por si nos bloqueamos para que se actualice el descriptor
-	descriptor_mutex = buscar_mutex_libre_y_no_repetido(nombre);
+	int descriptor_mutex = buscar_mutex_libre_y_no_repetido(nombre);
 	int error;
 	if ((error = cumple_requisitos(nombre, descriptor_mutex)) < 0){
 		return error;
@@ -577,23 +584,10 @@ int crear_mutex(){
 *	Funcion auxiliar para comprobar las condiciones de creación de un mutex
 */
 int cumple_requisitos(char *nombre, int descriptor_mutex){
-	// Comprobar que el nombre no sea demasiado largo
-	if(len(nombre) > MAX_NOM_MUT){
-		printk("--->ERROR: El nombre del mutex es demasiado largo\n");
-		return ERROR_LONGITUD_NOMBRE;
-	}
-
-	// Comprobar que proceso no tiene mas de NUM_MUT_PROC
-	if(p_proc_actual->num_mutex >= NUM_MUT_PROC){
-		printk("--->ERROR: El proceso %d tiene demasiados mutex\n", p_proc_actual->id);
-		return ERROR_MAX_NUM_MUTEX_PROC;
-	}
-
 	if(descriptor_mutex == ERROR_MAX_NUM_MUTEX){
 		printk("--->ERROR: Se ha alcanzado el maximo numero de mutex\n");
 		return ERROR_MAX_NUM_MUTEX;
 	}
-
 	// Comprobar que no existe un mutex con ese nombre
 	if(descriptor_mutex == ERROR_NOMBRE_REPETIDO){
 		printk("--->ERROR: Ya existe un mutex con ese nombre\n");

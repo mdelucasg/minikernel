@@ -1,7 +1,9 @@
+/---------------------------------------------------------/
 Memoria de la practica del Minikernel de la asignatura Sistemas Operativos Avanzados
 Autor: De Lucas Garcia, Mario
 Comienzo: 4 de abril.
 Final: 
+/---------------------------------------------------------/
 
 Calendario de actualizaciones:
 04/04: 
@@ -23,9 +25,24 @@ Calendario de actualizaciones:
 	
 17/04:
 	Se trabaja en solucionar los problemas con los mutex. 
-	Se ent
+	No se llega a corregir nada.
+
+03/05:
+	Se trabaja en solucionar los problemas con los mutex
+	No se llega a corregir nada.
+
+09/05:	
+	Se trabaja en solucionar Mutex añadiendo controles cuando se libera un proceso y teniendo cuidado a la hora de asociar y desasociar un proceso y un mutex.
+	Se trabaja en solucionar: NO SE HACE CAMBIO DE CONTEXTO EN crear_mutex QUE LO REQUIERE
+
+12/05
+	El profesor sugiere mirar las comprobaciones para crear un mutex y se cambia el orden en el que se hacen (esta funciòn auxiliar se añadió para evitar la duplicidad de código, pero el autor no se percató de que se alteraba la manera en que se tenía que comprobar si se podía crear un mutex).
+	Se pasa la prueba mutex y la gestión de las interrupciones, obteniendo un 4.875
+	Se analiza lock y unlock y se empieza a codificar.
+	
 	
 
 Trabajando con las interrupciones:
-	En un primer momento, se entiende después de leer el enunciado que siempre que se modifiquen estructuras de datos de los procesos (lista de procesos listos o lista de procesos bloqueados, BCP del proceso actual) se deben inhibir las interrupciones para que cada proceso no se quede en estados inconsistentes.
-	Cuando se pasaron las pruebas de dormir y tiempos procesos, me percaté de que en más sitios de los que había securizado las operaciones.
+	En un primer momento, se entiende después de leer el enunciado que siempre que se modifiquen estructuras de datos de los procesos (lista de procesos listos o lista de procesos bloqueados, BCP del proceso actual) se deben inhibir las interrupciones para que las estructuras que guardan el contexto de cada proceso no se quede en estados inconsistentes (problemas de sincronización de primer tipo visto en clase)
+	Cuando se pasaron las pruebas de dormir y tiempos procesos, me percaté de que era necesario inhibir las interrupciones en más sitios de los que había securizado.
+	
