@@ -69,3 +69,11 @@ int abrir_mutex(char *nombre){
 int cerrar_mutex(unsigned int mutexid){
    return llamsis(CERRAR_MUTEX, 1, mutexid);
 }
+
+int lock(unsigned int mutexid){
+   return llamsis(LOCK, 1, mutexid);
+}
+
+int unlock(unsigned int mutexid){
+   return llamsis(UNLOCK, 1, mutexid);
+}

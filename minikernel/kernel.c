@@ -58,8 +58,9 @@ static void iniciar_tabla_mutex(){
 		tabla_mutex[i].estado = NO_USADO;
 		cpy(tabla_mutex[i].nombre, "");
 		tabla_mutex[i].n_proc_asociados = 0;
+		tabla_mutex[i].id_proceso_lock = NO_USADO;
+		tabla_mutex[i].n_veces_lock = 0;
 		tabla_mutex[i].procesos_bloqueados.primero = NULL;
-		tabla_mutex[i].procesos_bloqueados.ultimo = NULL;
 	}
 
 }
@@ -191,13 +192,13 @@ static BCP * planificador(){
  *
  */
 static void liberar_proceso(){
+	printk("-> LIBERANDO PROCESO %d\n", p_proc_actual->id);
 	// Liberamos mutex abiertos
 	for(int i = 0; i < NUM_MUT_PROC; i++){
 		int mutexid = p_proc_actual->descriptores_mutex[i];
 		if(mutexid == NO_USADO) 
 			continue;
 		
-		printk("-> CERRANDO MUTEX %d\n", mutexid);
 		escribir_registro(1, mutexid);
 		cerrar_mutex();
 	}
@@ -518,7 +519,6 @@ int crear_mutex(){
 	int tipo = (int) leer_registro(2);
 	printk("-> PROC %d: CREAR MUTEX %s\n", p_proc_actual->id, nombre);
 
-	Mutex *mutex;
 	// Comprobar que el nombre no sea demasiado largo
 	if(len(nombre) > MAX_NOM_MUT){
 		printk("--->ERROR: El nombre del mutex es demasiado largo\n");
@@ -534,17 +534,7 @@ int crear_mutex(){
 	// Comprobar que no se ha alcanzado el maximo numero de mutex
 	while(num_mutex_global >= NUM_MUT){
 		printk("--->ERROR: Creando %s. Se ha alcanzado el maximo numero de mutex, %d \n", nombre, num_mutex_global);
-		printk("--> PROC %d: ESPERANDO HUECO MUTEX %s\n", p_proc_actual->id, nombre);
-		BCPptr p_proc = p_proc_actual;
-		p_proc->estado = BLOQUEADO;
-		int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
-		eliminar_elem(&lista_listos, p_proc);
-		insertar_ultimo(&lista_bloq_mutex, p_proc);
-		printk("--> PROC %d: INSERTADO EN COLA DE ESPERA DE MUTEX\n", p_proc->id);
-		fijar_nivel_int(nivel_interrupcion_previo);
-		p_proc_actual = planificador();
-		printk("-->C.CONTEXTO POR BLOQUEO de %d a %d\n",p_proc->id, p_proc_actual->id);
-		cambio_contexto(&(p_proc->contexto_regs), &(p_proc_actual->contexto_regs));
+		esperar_hueco_mutex(nombre);
 	}
 	// Volvemos a cogerlo por si nos bloqueamos para que se actualice el descriptor
 	int descriptor_mutex = buscar_mutex_libre_y_no_repetido(nombre);
@@ -555,6 +545,7 @@ int crear_mutex(){
 
 
 	// Crear mutex
+	Mutex *mutex;
 	mutex = &tabla_mutex[descriptor_mutex];
 	mutex->tipo = tipo;
 	mutex->estado = LIBRE;
@@ -702,6 +693,14 @@ int cerrar_mutex(){
 	mutex->n_proc_asociados--;
 	printk("----> ACTUALIZACION: MUTEX %s TIENE %d PROCESOS ASOCIADOS\n", mutex->nombre, mutex->n_proc_asociados);
 
+	// Si proceso tenia bloqueado mutex, desbloquear procesos
+	if(mutex->estado == OCUPADO && mutex->id_proceso_lock == p_proc_actual->id){
+		printk("----> PROC %d: UNLOCK IMPLICITO\n", p_proc_actual->id);
+		mutex->n_veces_lock = 1; // Para que desbloque todos los procesos
+		escribir_registro(1,mutexid);
+		unlock();
+	}
+
 
 	// Si es el ultimo proceso en estar asociado, eliminamos mutex
 	if(mutex->n_proc_asociados == 0){
@@ -735,6 +734,144 @@ int cerrar_mutex(){
 	return 0;
 }
 
+/**
+*	Llamada que intenta bloquear mutex del sistema. 
+*	Si el mutex ya está bloqueado por otro proceso, el proceso que realiza la operación se bloquea. 
+*	En caso contrario se bloquea el mutex sin bloquear al proceso.
+*/
+int lock(){
+	unsigned int mutexid = (unsigned int) leer_registro(1);
+	Mutex *mutex = &tabla_mutex[mutexid];
+	printk("-> PROC %d: LOCK MUTEX %s\n", p_proc_actual->id, mutex->nombre);
+	
+	int index_mutex_proc = buscar_descriptor_mutex_proc(mutexid);
+	printk("---> TRABAJAMOS CON EL DESCRIPTOR %d del MUTEX %s\n", mutexid, mutex->nombre);
+
+	if(index_mutex_proc < 0){
+		printk("--->ERROR: El proceso %d no tiene el mutex %s\n", p_proc_actual->id, mutex->nombre);
+		return ERROR_MUTEX_NO_EXISTE;
+	}
+
+	if(mutex->estado == OCUPADO && mutex->id_proceso_lock != p_proc_actual->id){
+		// Bloquear proceso en la lista de procesos bloqueados por este mutex
+		printk("--> PROC %d: BLOQUEADO POR MUTEX %s\n", p_proc_actual->id, mutex->nombre);
+		BCPptr p_proc = p_proc_actual;
+		p_proc->estado = BLOQUEADO;
+		int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
+		eliminar_elem(&lista_listos, p_proc);
+		insertar_ultimo(&mutex->procesos_bloqueados, p_proc);
+		printk("--> PROC %d: INSERTADO EN COLA DE PROCESOS BLOQUEADOS POR MUTEX %s\n", p_proc->id, mutex->nombre);
+		fijar_nivel_int(nivel_interrupcion_previo);
+		p_proc_actual = planificador();
+		printk("-->C.CONTEXTO POR LOCK de %d a %d\n",p_proc->id, p_proc_actual->id);
+		cambio_contexto(&(p_proc->contexto_regs), &(p_proc_actual->contexto_regs));
+	}
+
+	// Primera vez que hace lock, asociamos proceso a mutex
+	if(mutex->estado == LIBRE){
+		printk("----> ACTUALIZACION: PROC %d BLOQUEA MUTEX %s\n", p_proc_actual->id, mutex->nombre);
+		mutex->id_proceso_lock = p_proc_actual->id;
+	}
+
+	if(mutex->id_proceso_lock == p_proc_actual->id){
+		if(mutex->tipo == RECURSIVO){
+			mutex->id_proceso_lock = p_proc_actual->id;
+			mutex->estado = OCUPADO;
+			mutex->n_veces_lock++;
+			printk("----> PROC %d: LOCK RECURSIVO N %d del MUTEX %s\n", p_proc_actual->id, mutex->n_veces_lock, mutex->nombre);
+		}else{
+			// MUTEX NO_RECURSIVO
+			if(mutex->n_veces_lock == 0 && mutex->estado == LIBRE){
+				mutex->id_proceso_lock = p_proc_actual->id;
+				mutex->estado = OCUPADO;
+				mutex->n_veces_lock++;
+				printk("----> PROC %d: LOCK NO_RECURSIVO N %d del MUTEX %s\n", p_proc_actual->id, mutex->n_veces_lock, mutex->nombre);
+
+			}else{
+				printk("--> ERROR: LOCK Nº %d sobre MUTEX %s NO_RECURSIVO\n", mutex->n_veces_lock, mutex->nombre);
+				return ERROR_GENERICO;
+			}
+		}
+	}
+	return 0;
+}
+
+/**
+*	Llamada que intenta desbloquearbloquear al sistema. 
+*	Si el mutex ya está bloqueado por otro proceso, el proceso que realiza la operación se bloquea. 
+*	En caso contrario se bloquea el mutex sin bloquear al proceso.
+*/
+int unlock(){
+	unsigned int mutexid = (unsigned int) leer_registro(1);
+	Mutex *mutex = &tabla_mutex[mutexid];
+	printk("-> PROC %d: UNLOCK MUTEX %s\n", p_proc_actual->id, mutex->nombre);
+	
+	int index_mutex_proc = buscar_descriptor_mutex_proc(mutexid);
+	printk("---> TRABAJAMOS CON EL DESCRIPTOR %d del MUTEX %s\n", mutexid, mutex->nombre);
+
+	if(index_mutex_proc < 0){
+		printk("--->ERROR: El proceso %d no tiene el mutex %s\n", p_proc_actual->id, mutex->nombre);
+		return ERROR_MUTEX_NO_EXISTE;
+	}
+
+	if(mutex->id_proceso_lock == p_proc_actual->id && mutex->estado == OCUPADO){
+		printk("----> PROC %d: TIENE MUTEX %s OCUPADO Y VA A DESBLOQUEARLO\n", p_proc_actual->id, mutex->nombre);
+		if(mutex->tipo == RECURSIVO){
+			mutex->n_veces_lock--;
+			printk("----> PROC %d: UNLOCK RECURSIVO N %d del MUTEX %s\n", p_proc_actual->id, mutex->n_veces_lock, mutex->nombre);
+			if(mutex->n_veces_lock == 0){
+				printk("----> PROC %d: ULTIMO UNLOCK Y DESBLOQUEA\n", p_proc_actual->id);
+				mutex->estado = LIBRE;
+				mutex->id_proceso_lock = NO_USADO;
+				// Desbloqueamos procesos que estaban bloqueados
+				BCP *p_proc = mutex->procesos_bloqueados.primero;
+				BCP *siguiente = NULL;
+				int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
+				while(p_proc != NULL){
+					printk("----> PROC %d DESBLOQUEA a %d por MUTEX %s\n", p_proc_actual->id, p_proc->id, mutex->nombre);
+					siguiente = p_proc->siguiente;
+					p_proc->estado = LISTO;
+					eliminar_elem(&mutex->procesos_bloqueados, p_proc);
+					insertar_ultimo(&lista_listos, p_proc);				
+					p_proc = siguiente;
+				}
+				fijar_nivel_int(nivel_interrupcion_previo);
+			}
+		} else{
+			// MUTEX NO_RECURSIVO
+			if(mutex->n_veces_lock == 1){
+				printk("----> PROC %d: UNLOCK Y DESBLOQUEA\n", p_proc_actual->id);
+				mutex->n_veces_lock--;
+				mutex->estado = LIBRE;
+				mutex->id_proceso_lock = NO_USADO;
+				// Desbloqueamos procesos que estaban bloqueados
+				BCP *p_proc = mutex->procesos_bloqueados.primero;
+				BCP *siguiente = NULL;
+				int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
+				while(p_proc != NULL){
+					printk("----> PROC %d DESBLOQUEA a %d por MUTEX %s\n", p_proc_actual->id, p_proc->id, mutex->nombre);
+					siguiente = p_proc->siguiente;
+					p_proc->estado = LISTO;
+					eliminar_elem(&mutex->procesos_bloqueados, p_proc);
+					insertar_ultimo(&lista_listos, p_proc);				
+					p_proc = siguiente;
+				}
+				fijar_nivel_int(nivel_interrupcion_previo);
+			}else{
+				printk("--> ERROR: UNLOCK ADICIONAL sobre MUTEX %s NO_RECURSIVO\n", mutex->n_veces_lock, mutex->nombre);
+				return ERROR_GENERICO;
+			}
+		}
+	} else {
+		// Bloquear proceso en la lista de procesos bloqueados por este mutex
+		printk("--> ERROR: UNLOCK sobre MUTEX %s QUE NO TENIA PROC %d NO TENIA LOCKED\n", mutex->nombre, p_proc_actual->id);
+		return ERROR_GENERICO;
+	}
+	return 0;
+}
+
+// ----------------------------------------------------
+// Funciones auxiliares
 /**
 *	Función auxiliar para obtener longitud de un string
 */

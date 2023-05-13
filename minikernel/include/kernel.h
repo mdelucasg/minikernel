@@ -137,6 +137,7 @@ typedef struct mutex {
 	int procs_asociados[MAX_PROC]; /*procesos que han creado|abierto este mutex*/
 	// Para lock
 	int id_proceso_lock; /*id del proceso que tiene el mutex*/
+	int n_veces_lock; /*n veces que se ha hecho lock de este mutex*/
 	lista_BCPs procesos_bloqueados; /*lista de procesos bloqueados*/
 } Mutex;
 
@@ -164,6 +165,8 @@ int tiempos_proceso();
 int crear_mutex();
 int abrir_mutex();
 int cerrar_mutex();
+int lock();
+int unlock();
 
 
 /*
@@ -178,7 +181,9 @@ servicio tabla_servicios[NSERVICIOS]={
 	{tiempos_proceso},
 	{crear_mutex},
 	{abrir_mutex},
-	{cerrar_mutex}
+	{cerrar_mutex},
+	{lock},
+	{unlock},
 };
 
 /**
