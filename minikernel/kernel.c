@@ -752,7 +752,7 @@ int lock(){
 		return ERROR_MUTEX_NO_EXISTE;
 	}
 
-	if(mutex->estado == OCUPADO && mutex->id_proceso_lock != p_proc_actual->id){
+	while(mutex->estado == OCUPADO && mutex->id_proceso_lock != p_proc_actual->id){
 		// Bloquear proceso en la lista de procesos bloqueados por este mutex
 		printk("--> PROC %d: BLOQUEADO POR MUTEX %s\n", p_proc_actual->id, mutex->nombre);
 		BCPptr p_proc = p_proc_actual;
@@ -825,17 +825,15 @@ int unlock(){
 				mutex->id_proceso_lock = NO_USADO;
 				// Desbloqueamos procesos que estaban bloqueados
 				BCP *p_proc = mutex->procesos_bloqueados.primero;
-				BCP *siguiente = NULL;
-				int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
-				while(p_proc != NULL){
+				if(p_proc != NULL){
 					printk("----> PROC %d DESBLOQUEA a %d por MUTEX %s\n", p_proc_actual->id, p_proc->id, mutex->nombre);
-					siguiente = p_proc->siguiente;
 					p_proc->estado = LISTO;
+					int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
 					eliminar_elem(&mutex->procesos_bloqueados, p_proc);
 					insertar_ultimo(&lista_listos, p_proc);				
-					p_proc = siguiente;
+					fijar_nivel_int(nivel_interrupcion_previo);
 				}
-				fijar_nivel_int(nivel_interrupcion_previo);
+				
 			}
 		} else{
 			// MUTEX NO_RECURSIVO
@@ -846,17 +844,14 @@ int unlock(){
 				mutex->id_proceso_lock = NO_USADO;
 				// Desbloqueamos procesos que estaban bloqueados
 				BCP *p_proc = mutex->procesos_bloqueados.primero;
-				BCP *siguiente = NULL;
-				int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
-				while(p_proc != NULL){
+				if(p_proc != NULL){
 					printk("----> PROC %d DESBLOQUEA a %d por MUTEX %s\n", p_proc_actual->id, p_proc->id, mutex->nombre);
-					siguiente = p_proc->siguiente;
 					p_proc->estado = LISTO;
+					int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
 					eliminar_elem(&mutex->procesos_bloqueados, p_proc);
 					insertar_ultimo(&lista_listos, p_proc);				
-					p_proc = siguiente;
+					fijar_nivel_int(nivel_interrupcion_previo);
 				}
-				fijar_nivel_int(nivel_interrupcion_previo);
 			}else{
 				printk("--> ERROR: UNLOCK ADICIONAL sobre MUTEX %s NO_RECURSIVO\n", mutex->n_veces_lock, mutex->nombre);
 				return ERROR_GENERICO;
