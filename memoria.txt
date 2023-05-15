@@ -9,23 +9,25 @@ Calendario de actualizaciones:
 04/04: 
 	Lectura y compresion de la practica. 
 	Se ha creado un repositorio de GitHub.
+
 05/04:
 	Primera toma de contacto haciendo el obtener_id_pr()
 	Se entrega, pero no compila el init
+
 06/04:
 	Se corrige problemas obtener_id_pr()
 	Se realiza dormir() probando que en el terminal se comporta como se espera
 	Se entrega y se obtiene un: 
 	1.5
-	Se empieza a implementar la parte de mutex, pero sin terminarla.
+	Se empieza a implementar la parte de tiempos_procesos, pero sin terminarla.
 
 11/04:
 	Se trabaja para solucionar los problemas con tiempos_procesos. Después de la clase, se pregunta al profesor y se soluciona el problema
 	Se obtiene un 3.125
 	
 17/04:
-	Se trabaja en solucionar los problemas con los mutex. 
-	No se llega a corregir nada.
+	Se implementa mutex, pero fallan.
+	La nota se mantiene en un 3.125.
 
 03/05:
 	Se trabaja en solucionar los problemas con los mutex
@@ -34,15 +36,37 @@ Calendario de actualizaciones:
 09/05:	
 	Se trabaja en solucionar Mutex añadiendo controles cuando se libera un proceso y teniendo cuidado a la hora de asociar y desasociar un proceso y un mutex.
 	Se trabaja en solucionar: NO SE HACE CAMBIO DE CONTEXTO EN crear_mutex QUE LO REQUIERE
+	La nota se sigue manteniendo en un 3.125.
 
 12/05
 	El profesor sugiere mirar las comprobaciones para crear un mutex y se cambia el orden en el que se hacen (esta funciòn auxiliar se añadió para evitar la duplicidad de código, pero el autor no se percató de que se alteraba la manera en que se tenía que comprobar si se podía crear un mutex).
 	Se pasa la prueba mutex y la gestión de las interrupciones, obteniendo un 4.875
-	Se analiza lock y unlock y se empieza a codificar.
-	
-	
+	Se analiza lock y unlock y se implementa.
+	Se pasan las pruebas a excepción de la prueba en el que varios procesos compiten por el mutex y el tratamiento de interrupciones.
+	Se obtiene un 6.125.
+
+13/05
+	Se cambia el tratamiento de las interrupciones en unlock --> Se pasa la prueba
+	Se piensa como tratar la situación en el que varios mutex compiten por un mutex.
+		Modificar unlock para comprobar cuando intentó hacer lock del mutex para despertar al que tenga menor valor de num_int_reloj.
+		Despertar solo a un proceso en unlock
+	Se prueba la segunda opción por ser más directa
+	No se pasa la prueba
+
+14/05
+	Se cambia la sentencia condicional por un while para controlar escenario propuesto por el profesor.
+	Se pasa la prueba y se consigue un 6.5
+
+15/05
+	Se trabaja en la implementación de Round-Robin
+	Se pasan las pruebas. Nota: 8.125
 
 Trabajando con las interrupciones:
 	En un primer momento, se entiende después de leer el enunciado que siempre que se modifiquen estructuras de datos de los procesos (lista de procesos listos o lista de procesos bloqueados, BCP del proceso actual) se deben inhibir las interrupciones para que las estructuras que guardan el contexto de cada proceso no se quede en estados inconsistentes (problemas de sincronización de primer tipo visto en clase)
 	Cuando se pasaron las pruebas de dormir y tiempos procesos, me percaté de que era necesario inhibir las interrupciones en más sitios de los que había securizado.
 	
+	A la hora de implementar el Round-Robin, se incorporan nuevas interrupciones de planificación que añaden nuevos cambios de contexto involuntarios, y en consecuencia, mayor complejidad en la sincronización de los procesos.
+
+
+
+

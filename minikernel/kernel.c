@@ -30,9 +30,6 @@ static void iniciar_tabla_proc(){
 
 	for (i=0; i<MAX_PROC; i++){
 		tabla_procs[i].estado = NO_USADA;
-		for(int j=0; j<NUM_MUT_PROC; j++){
-			tabla_procs[i].descriptores_mutex[j] = NO_USADO;
-		}
 	}
 }
 
@@ -177,12 +174,17 @@ static void espera_int(){
 }
 
 /*
- * Funcin de planificacion que implementa un algoritmo FIFO.
+ * Funcin de planificacion que implementa un algoritmo Round-Robin.
  */
 static BCP * planificador(){
-	while (lista_listos.primero==NULL)
+	while (lista_listos.primero == NULL)
 		espera_int();		/* No hay nada que hacer */
-	return lista_listos.primero;
+	
+	BCPptr p_proc = lista_listos.primero;
+	// Cualquier proceso que entre a ejecutar, debera tener la rodaja completa
+	p_proc->vida = TICKS_POR_RODAJA;
+
+	return p_proc;
 }
 
 /*
@@ -285,6 +287,7 @@ static void int_reloj(){
 	//printk("-> TRATANDO INT. DE RELOJ Nº %d\n", num_int_reloj);
 	tratamiento_uso_procesador();
 	tratamiento_int_dormir();
+	tratamiento_round_robin();
     return;
 }
 
@@ -304,11 +307,26 @@ static void tratar_llamsis(){
 }
 
 /*
- * Tratamiento de interrupciuones software
+*	
+*/
+
+/*
+ * Tratamiento de interrupciones software
  */
 static void int_sw(){
-
 	printk("-> TRATANDO INT. SW\n");
+	if(p_proc_actual->id == id_proc_a_expulsar){
+		printk("-> EXPULSANDO PROCESO %d\n", p_proc_actual->id);
+		BCPptr p_proc = lista_listos.primero;
+		int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
+		eliminar_primero(&lista_listos);
+		insertar_ultimo(&lista_listos, p_proc);
+		fijar_nivel_int(nivel_interrupcion_previo);
+		// CCI
+		p_proc = p_proc_actual;
+		p_proc_actual = planificador();
+		cambio_contexto(&(p_proc->contexto_regs), &(p_proc_actual->contexto_regs));
+	}
 
 	return;
 }
@@ -341,14 +359,21 @@ static int crear_tarea(char *prog){
 		p_proc->id=proc;
 		p_proc->estado=LISTO;
 		
+		// Dormir
 		p_proc->dormir = 0;
+
+		// Tiempos proceso
 		p_proc->tiempo_usuario = 0;
 		p_proc->tiempo_sistema = 0;
 
+		// Mutex
 		for(int i = 0; i < NUM_MUT_PROC; i++){
 			p_proc->descriptores_mutex[i] = NO_USADO;
 		}
 		p_proc->num_mutex = 0;
+
+		// Round Robin
+		p_proc->vida = TICKS_POR_RODAJA;
 
 		/* lo inserta al final de cola de listos */
 		int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
@@ -387,8 +412,7 @@ int sis_crear_proceso(){
  * Tratamiento de llamada al sistema escribir. Llama simplemente a la
  * funcion de apoyo escribir_ker
  */
-int sis_escribir()
-{
+int sis_escribir(){
 	char *texto;
 	unsigned int longi;
 
@@ -864,6 +888,24 @@ int unlock(){
 	}
 	return 0;
 }
+
+/**
+*	Rutina que actualiza la vida de un proceso (Implementacion de Round Robin)
+*/
+void tratamiento_round_robin(){
+	if(p_proc_actual->estado == LISTO){
+		p_proc_actual->vida--;
+		if(p_proc_actual->vida <= 0){
+			printk("--> PROC %d: VIDA = %d. FIN DE RODAJA. SE ACTIVA INT. SW \n", p_proc_actual->id, p_proc_actual->vida);
+			// Si el proceso ha agotado su tiempo de vida, se activa interrupcion SW
+			id_proc_a_expulsar = p_proc_actual->id;
+			activar_int_SW();
+		}
+	}
+	// Proceso bloqueado || nulo no consume su tiempo de vida
+}
+
+
 
 // ----------------------------------------------------
 // Funciones auxiliares

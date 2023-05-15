@@ -42,6 +42,7 @@ typedef struct BCP_t {
 	int tiempo_usuario;		/* tiempo de ejecucion en modo usuario */
 	int descriptores_mutex[NUM_MUT_PROC];			/* descriptor mutex que tiene asociado el proceso */
 	int num_mutex; /* numero de mutex que tiene el proceso */
+	int vida; /* TICKS que le quedan al proceso */
 } BCP;
 
 /*
@@ -144,6 +145,10 @@ typedef struct mutex {
 Mutex tabla_mutex[NUM_MUT];
 
 lista_BCPs lista_bloq_mutex= {NULL, NULL};
+
+// Round Robin
+int id_proc_a_expulsar = NO_USADO;
+void tratamiento_round_robin();
 
 // Funciones auxiliares
 void esperar_hueco_mutex(char *nombre);
