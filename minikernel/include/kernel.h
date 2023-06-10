@@ -158,6 +158,18 @@ int len(char *string);
 int cmp(char *s1, char *s2);
 void cpy(char *dest, char *orig);
 
+// Buffer para guardar los caracteres leidos
+typedef struct buffer {
+	char buffer[TAM_BUF_TERM];
+	int length;
+	int puntero_lectura;
+	int puntero_escritura;
+} Buffer;
+
+Buffer caracteres;
+lista_BCPs lista_bloq_caracter= {NULL, NULL};
+int caracteres_leidos = 0;
+
 /*
  * Prototipos de las rutinas que realizan cada llamada al sistema
  */
@@ -172,6 +184,7 @@ int abrir_mutex();
 int cerrar_mutex();
 int lock();
 int unlock();
+int leer_caracter();
 
 
 /*
@@ -189,6 +202,7 @@ servicio tabla_servicios[NSERVICIOS]={
 	{cerrar_mutex},
 	{lock},
 	{unlock},
+	{leer_caracter},
 };
 
 /**

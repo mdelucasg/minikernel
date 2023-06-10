@@ -45,6 +45,19 @@ static int buscar_BCP_libre(){
 	return ERROR_GENERICO;
 }
 
+/**
+* 	Funcion relacionadas con el buffer de caracteres: 
+* 	iniciar_buffer_caracteres
+*/
+static void iniciar_buffer_caracteres(){
+	for (int i=0; i<TAM_BUF_TERM; i++){
+		caracteres.buffer[i] = '\0';
+	}
+	caracteres.puntero_escritura = 0;
+	caracteres.puntero_lectura = 0;
+	caracteres.length = 0;
+}
+
 /*
 *	Funciones relacionadas con la tabla de mutex:
 *	iniciar_tabla_mutex buscar_mutex_libre buscar_mutex_repetidos
@@ -256,15 +269,13 @@ static void exc_arit(){
  * Si se accede a un parametro  de la zona de usuario, no se debe producir panico, sino que se aborta el proceso
  */
 static void exc_mem(){
-
 	if (!viene_de_modo_usuario() && zona_mem_proc_usuario == 0)
 		panico("excepcion de memoria cuando estaba dentro del kernel");
-
 
 	printk("-> EXCEPCION DE MEMORIA EN PROC %d\n", p_proc_actual->id);
 	liberar_proceso();
 
-        return; /* no debera llegar aqui */
+    return; /* no debera llegar aqui */
 }
 
 /*
@@ -272,11 +283,31 @@ static void exc_mem(){
  */
 static void int_terminal(){
 	char car;
-
+	int nivel_terminal = fijar_nivel_int(NIVEL_2);
 	car = leer_puerto(DIR_TERMINAL);
 	printk("-> TRATANDO INT. DE TERMINAL %c\n", car);
 
-        return;
+	// Si buffer lleno, no se hace nada
+	if (caracteres.length >= TAM_BUF_TERM) return;
+
+	// Añadimos car al buffer porque hay hueco
+	caracteres.buffer[caracteres.puntero_escritura] = car;
+	caracteres.puntero_escritura = (caracteres.puntero_escritura + 1) % TAM_BUF_TERM;
+	printk("---> PROC %d: ACTUALIZACION PUNTERO ESCRITURA A %d \n", p_proc_actual->id, caracteres.puntero_escritura);
+	caracteres.length++;
+	printk("---> PROC %d: ACTUALIZACION LENGTH A %d \n", p_proc_actual->id, caracteres.length);
+	// // Si buffer estaba vacio, se despierta proceso bloqueado
+	// if (caracteres.length == 1) {
+		BCP * p_proc = lista_bloq_caracter.primero;
+		if (p_proc == NULL) return;
+		p_proc->estado = LISTO;
+		int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
+		eliminar_primero(&lista_bloq_caracter);
+		insertar_ultimo(&lista_listos, p_proc);
+		fijar_nivel_int(nivel_interrupcion_previo);
+	// }
+	fijar_nivel_int(nivel_terminal);
+    return;
 }
 
 /*
@@ -443,16 +474,6 @@ int obtener_id_pr(){
 
 /**
 * Llamada que permita que un proceso pueda qudarse bloqueado un plazo de tiempo
-* Pautas:
-* Modificar el BCP para incluir algún campo relacionado con esta llamada.
-* Definir una lista de procesos esperando plazos.
-* Incluir la llamada que, entre otras labores, debe poner al proceso en estado bloqueado, reajustar las listas de
-BCPs correspondientes y realizar el cambio de contexto.
-* Añadir a la rutina de interrupción la detección de si se cumple el plazo de algún proceso dormido. Si es así,
-debe cambiarle de estado y reajustar las listas correspondientes.
-* Revisar el código del sistema para detectar posibles problemas de sincronización y solucionarlos
-adecuadamente.
-* Se usan los registros para el paso de parametros del sistema
 */
 int dormir(){
 	unsigned int segundos = (unsigned int) leer_registro(1);
@@ -905,6 +926,37 @@ void tratamiento_round_robin(){
 	// Proceso bloqueado || nulo no consume su tiempo de vida
 }
 
+/*
+*	Lee caracter del terminal y lo devuelve como resultado
+*/
+int leer_caracter(){
+	printk("-> PROC %d: LEER_CARACTER\n    BUFFER: %s LENGTH: %d\n", p_proc_actual->id, caracteres.buffer, caracteres.length);
+	int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_2);
+	
+	// Si no hay caracteres en el buffer, bloqueamos el proceso
+	while(caracteres.length == 0) {
+		// Si no hay caracteres en el buffer, bloqueamos el proceso
+		BCPptr p_proc = p_proc_actual;
+		p_proc->estado = BLOQUEADO;
+		int nivel_interrupcion_previo = fijar_nivel_int(NIVEL_3);
+		eliminar_elem(&lista_listos, p_proc);
+		insertar_ultimo(&lista_bloq_caracter, p_proc);
+		fijar_nivel_int(nivel_interrupcion_previo);
+		p_proc_actual = planificador();
+		cambio_contexto(&(p_proc->contexto_regs), &(p_proc_actual->contexto_regs));
+	}
+
+	// Si hay caracteres en el buffer, devolvemos el primero
+	int c = (int) caracteres.buffer[caracteres.puntero_lectura];
+	printk("--> PROC %d: LECTURA CARACTER Nº %d\n", p_proc_actual->id, caracteres_leidos);
+	caracteres.puntero_lectura = (caracteres.puntero_lectura + 1) % TAM_BUF_TERM;
+	printk("---> PROC %d: ACTUALIZACION PUNTERO LECTURA A %d \n", p_proc_actual->id, caracteres.puntero_lectura);
+	caracteres.length--;
+	caracteres_leidos++;
+	fijar_nivel_int(nivel_interrupcion_previo);
+	return c;
+
+}
 
 
 // ----------------------------------------------------
@@ -972,6 +1024,8 @@ int main(){
 	iniciar_tabla_proc();		/* inicia BCPs de tabla de procesos */
 
 	iniciar_tabla_mutex();		/* inicia mutex de tabla de mutex */
+
+	iniciar_buffer_caracteres(); /* inicia buffer de caracteres */
 
 	/* crea proceso inicial */
 	if (crear_tarea((void *)"init")<0)

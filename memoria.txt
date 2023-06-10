@@ -60,12 +60,22 @@ Calendario de actualizaciones:
 15/05
 	Se trabaja en la implementación de Round-Robin
 	Se pasan las pruebas. Nota: 8.125
+	
+09/06:	
+	Se trabaja en leer_caracter
+	Error: No leo los 22 caracteres, porque bloqueaba al proceso en leer_Caracter después de comprobar si había caracteres. Luego, siempre perdía un caracteres por leer en esa comprobación
+
+10/06:
+	Se cambia de orden las comprobaciones en leer_Caracter
+	Se obtiene una nota de:
 
 Trabajando con las interrupciones:
 	En un primer momento, se entiende después de leer el enunciado que siempre que se modifiquen estructuras de datos de los procesos (lista de procesos listos o lista de procesos bloqueados, BCP del proceso actual) se deben inhibir las interrupciones para que las estructuras que guardan el contexto de cada proceso no se quede en estados inconsistentes (problemas de sincronización de primer tipo visto en clase)
 	Cuando se pasaron las pruebas de dormir y tiempos procesos, me percaté de que era necesario inhibir las interrupciones en más sitios de los que había securizado.
 	
 	A la hora de implementar el Round-Robin, se incorporan nuevas interrupciones de planificación que añaden nuevos cambios de contexto involuntarios, y en consecuencia, mayor complejidad en la sincronización de los procesos.
+	
+	También, a la hora de implementar la llamada al sistema leer_Caracter hay que tener cuidado con cómo se manejan las interrupciones, porque para modificar estructuras de BCP hemos de aumentar e inhibir todo tipo de interrupciones, pero en otros casos solo hasta el nivel 2.
 
 
 

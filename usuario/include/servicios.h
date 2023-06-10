@@ -49,6 +49,7 @@ int abrir_mutex(char *nombre);
 int cerrar_mutex(unsigned int mutexid);
 int lock(unsigned int mutexid);
 int unlock(unsigned int mutexid);
+int leer_caracter();
 
 #endif /* SERVICIOS_H */
 
