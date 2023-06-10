@@ -297,7 +297,7 @@ static void int_terminal(){
 	caracteres.length++;
 	printk("---> PROC %d: ACTUALIZACION LENGTH A %d \n", p_proc_actual->id, caracteres.length);
 	// // Si buffer estaba vacio, se despierta proceso bloqueado
-	// if (caracteres.length == 1) {
+	if (caracteres.length == 1) {
 		BCP * p_proc = lista_bloq_caracter.primero;
 		if (p_proc == NULL) return;
 		p_proc->estado = LISTO;
@@ -305,7 +305,7 @@ static void int_terminal(){
 		eliminar_primero(&lista_bloq_caracter);
 		insertar_ultimo(&lista_listos, p_proc);
 		fijar_nivel_int(nivel_interrupcion_previo);
-	// }
+	}
 	fijar_nivel_int(nivel_terminal);
     return;
 }

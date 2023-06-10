@@ -66,8 +66,8 @@ Calendario de actualizaciones:
 	Error: No leo los 22 caracteres, porque bloqueaba al proceso en leer_Caracter después de comprobar si había caracteres. Luego, siempre perdía un caracteres por leer en esa comprobación
 
 10/06:
-	Se cambia de orden las comprobaciones en leer_Caracter
-	Se obtiene una nota de:
+	Se cambia de orden las comprobaciones en leer_Caracter y se añade el manejo de las interrupciones que faltaba en algunos casos.
+	Se obtiene una nota de: 9.75
 
 Trabajando con las interrupciones:
 	En un primer momento, se entiende después de leer el enunciado que siempre que se modifiquen estructuras de datos de los procesos (lista de procesos listos o lista de procesos bloqueados, BCP del proceso actual) se deben inhibir las interrupciones para que las estructuras que guardan el contexto de cada proceso no se quede en estados inconsistentes (problemas de sincronización de primer tipo visto en clase)
